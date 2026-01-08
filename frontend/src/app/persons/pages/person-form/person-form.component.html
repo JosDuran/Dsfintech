@@ -1,0 +1,31 @@
+<h2>{{ personId ? 'Editar persona' : 'Nueva persona' }}</h2>
+
+<form [formGroup]="form" (ngSubmit)="submit()">
+
+  <div class="mb-3">
+    <label class="form-label">Nombre</label>
+    <input class="form-control" formControlName="first_name">
+    <small class="text-danger" *ngIf="form.get('first_name')?.invalid && form.get('first_name')?.touched">
+      Nombre requerido
+    </small>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Apellido</label>
+    <input class="form-control" formControlName="last_name">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Email</label>
+    <input class="form-control" formControlName="email">
+  </div>
+
+  <button class="btn btn-primary" [disabled]="form.invalid">
+    Guardar
+  </button>
+
+  <a routerLink="/persons" class="btn btn-secondary ms-2">
+    Cancelar
+  </a>
+
+</form>

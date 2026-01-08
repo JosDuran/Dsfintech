@@ -7,10 +7,8 @@ ENV PYTHONUNBUFFERED=1
 
 RUN pip install --upgrade pip
 
-RUN pip install \
-    django==4.2 \
-    djangorestframework \
-    psycopg2-binary \
-    python-dotenv
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 
 COPY . /app
