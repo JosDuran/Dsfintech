@@ -1,7 +1,6 @@
-// person-list.component.ts
 import { Component, OnInit } from '@angular/core';
-import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 
 @Component({
@@ -16,6 +15,9 @@ export class PersonListComponent implements OnInit {
   persons: any[] = [];
   page = 1;
 
+  loading = false;
+  error: string | null = null;
+
   constructor(private service: PersonService) {}
 
   ngOnInit(): void {
@@ -23,16 +25,25 @@ export class PersonListComponent implements OnInit {
   }
 
   load(): void {
+    this.loading = true;
+    this.error = null;
+
     this.service.list({
       page: this.page,
       ordering: '-created_at'
-    }).subscribe((res: any) => {
-      this.persons = res.results;
-      console.log('Datos recibidos:', this.persons);
+    }).subscribe({
+      next: (res: any) => {
+        this.persons = res.results;
+        this.loading = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.error = 'Error al cargar personas';
+        this.loading = false;
+      }
     });
   }
 
-  // ✅ Eliminar persona
   delete(id: string): void {
     if (!confirm('¿Seguro que deseas eliminar esta persona?')) return;
 
@@ -42,7 +53,6 @@ export class PersonListComponent implements OnInit {
     });
   }
 
-  // ✅ Paginación
   nextPage(): void {
     this.page++;
     this.load();

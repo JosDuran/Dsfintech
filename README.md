@@ -181,7 +181,27 @@ export const environment = {
 };
 ```
 
-🚀 Ejecución en desarrollo
+## ⚙️ Poner en marcha el backend Microservicio
+
+En caso se quieran recrear las migraciones, 
+
+docker compose exec web python manage.py makemigrations people
+
+sino:
+
+
+```
+docker compose up
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py fillppl
+
+```
+
+
+
+Paso previo si se quiere ejecutar
+
+🚀 Ejecución en desarrollo del frontend
 Requisitos
 
 Node.js 18+

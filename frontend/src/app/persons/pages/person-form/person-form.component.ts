@@ -1,4 +1,3 @@
-// person-form.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -28,7 +27,7 @@ export class PersonFormComponent implements OnInit {
   loading = false;
   error: string | null = null;
 
-  // usado en el HTML para distinguir editar / nuevo
+  // usado en el HTML (editar / nuevo)
   personId?: string;
 
   constructor(
@@ -39,17 +38,15 @@ export class PersonFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // obtener ID desde la ruta
     this.personId = this.route.snapshot.paramMap.get('id') ?? undefined;
 
-    // crear formulario
     this.form = this.fb.group({
       first_name: ['', [Validators.required, Validators.maxLength(100)]],
       last_name: ['', [Validators.required, Validators.maxLength(100)]],
       email: ['', [Validators.required, Validators.email]]
     });
 
-    // 🔹 SI ES EDICIÓN → cargar persona
+    // 🔹 EDICIÓN → cargar persona
     if (this.personId) {
       this.loading = true;
 
@@ -80,7 +77,6 @@ export class PersonFormComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    // 🔹 CREATE o UPDATE
     const request$ = this.personId
       ? this.service.update(this.personId, this.form.value)
       : this.service.create(this.form.value);
