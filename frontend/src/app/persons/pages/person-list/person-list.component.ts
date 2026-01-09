@@ -1,12 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 
 @Component({
   selector: 'app-person-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './person-list.component.html',
   styleUrls: ['./person-list.component.css']
 })
@@ -14,6 +15,11 @@ export class PersonListComponent implements OnInit {
 
   persons: any[] = [];
   page = 1;
+
+  // 🔴 BACKEND SOLO ENTIENDE `search`
+  filters = {
+    search: ''
+  };
 
   loading = false;
   error: string | null = null;
@@ -28,15 +34,22 @@ export class PersonListComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.service.list({
+    const params: any = {
       page: this.page,
       ordering: '-created_at'
-    }).subscribe({
+    };
+
+    // 🔴 CLAVE: mandar `search`
+    if (this.filters.search) {
+      params.search = this.filters.search;
+    }
+
+    this.service.list(params).subscribe({
       next: (res: any) => {
         this.persons = res.results;
         this.loading = false;
       },
-      error: (err: any) => {
+      error: err => {
         console.error(err);
         this.error = 'Error al cargar personas';
         this.loading = false;
@@ -44,13 +57,14 @@ export class PersonListComponent implements OnInit {
     });
   }
 
+  applyFilters(): void {
+    this.page = 1;   // reset de paginación
+    this.load();
+  }
+
   delete(id: string): void {
     if (!confirm('¿Seguro que deseas eliminar esta persona?')) return;
-
-    this.service.delete(id).subscribe({
-      next: () => this.load(),
-      error: (err: any) => console.error(err)
-    });
+    this.service.delete(id).subscribe(() => this.load());
   }
 
   nextPage(): void {

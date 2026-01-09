@@ -1,4 +1,4 @@
-// app.routes.ts
+//app.routes.ts
 import { Routes } from '@angular/router';
 import { PersonListComponent } from './persons/pages/person-list/person-list.component';
 import { PersonFormComponent } from './persons/pages/person-form/person-form.component';
