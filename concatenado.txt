@@ -44,6 +44,7 @@ trim_trailing_whitespace = false
 
 ===== ./frontend/src/main.ts =====
 
+//main.ts
 import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';
@@ -57,32 +58,60 @@ bootstrapApplication(AppComponent, appConfig)
 /* You can add global styles to this file, and also import other style files */
 
 
+===== ./frontend/src/app/app-routing.module.ts =====
+
+// app-routing.module.ts
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { LoginComponent } from './auth/login.component';
+import { AuthGuard } from './auth/auth.guard';
+
+const routes: Routes = [
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'persons',
+    loadChildren: () =>
+      import('./persons/persons.module').then(m => m.PersonsModule),
+    canActivate: [AuthGuard] // 🔹 protegiendo toda la ruta lazy-loaded
+  },
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  { path: '**', redirectTo: 'login' } // 🔹 cualquier ruta desconocida va a login
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule {}
+
+
 ===== ./frontend/src/app/app.component.css =====
 
 
 
 ===== ./frontend/src/app/app.component.html =====
 
-<h1>Hello, frontend</h1>
-
-<nav>
-  <a routerLink="/persons">Persons</a>
-</nav>
-
-<hr>
-
+<!--app.component.html-->
 <router-outlet></router-outlet>
+
 
 
 ===== ./frontend/src/app/app.component.spec.ts =====
 
+// src/app/app.component.spec.ts
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { provideRouter } from '@angular/router';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AppComponent],
+      imports: [
+        AppComponent // standalone
+      ],
+      providers: [
+        provideRouter([]) // 🔹 mock simple de rutas
+      ]
     }).compileComponents();
   });
 
@@ -92,28 +121,26 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'frontend' title`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('frontend');
-  });
-
-  it('should render title', () => {
+  it('should render router-outlet', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, frontend');
+    expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
 });
 
 
+
 ===== ./frontend/src/app/app.component.ts =====
+
+//app.component.ts
 
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
+  standalone: true,          // 👈 ESTO FALTABA
   imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
@@ -125,49 +152,333 @@ export class AppComponent {
 
 ===== ./frontend/src/app/app.config.ts =====
 
+// app.config.ts
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
-
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
+import { authInterceptor } from './core/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([authInterceptor])),
   ]
 };
 
 
 ===== ./frontend/src/app/app.routes.ts =====
 
-//app.routes.ts
 import { Routes } from '@angular/router';
 import { PersonListComponent } from './persons/pages/person-list/person-list.component';
 import { PersonFormComponent } from './persons/pages/person-form/person-form.component';
+import { LoginComponent } from './auth/login.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'persons', pathMatch: 'full' },
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+
+  { path: 'login', component: LoginComponent },
+
   { path: 'persons', component: PersonListComponent },
   { path: 'persons/new', component: PersonFormComponent },
   { path: 'persons/:id/edit', component: PersonFormComponent },
+
+  { path: '**', redirectTo: 'login' }
 ];
+
+
+===== ./frontend/src/app/auth/auth.guard.spec.ts =====
+
+// src/app/auth/auth.guard.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { AuthGuard } from './auth.guard';
+import { AuthService } from './auth.service';
+import { Router } from '@angular/router';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { Injectable } from '@angular/core';
+
+describe('AuthGuard', () => {
+  let guard: AuthGuard;
+  let authService: AuthService;
+  let routerSpy: jasmine.SpyObj<Router>;
+
+  beforeEach(() => {
+    // Creamos un spy para Router
+    routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule], // para HttpClient en AuthService
+      providers: [
+        AuthGuard,
+        AuthService,
+        { provide: Router, useValue: routerSpy } // inyectamos el mock
+      ]
+    });
+
+    guard = TestBed.inject(AuthGuard);
+    authService = TestBed.inject(AuthService);
+  });
+
+  it('should allow activation if token exists', () => {
+    // simulamos que hay token
+    spyOn(authService, 'getToken').and.returnValue('123');
+    const result = guard.canActivate(); // ⚡ sin argumentos
+    expect(result).toBe(true);
+  });
+
+  it('should redirect to login if no token', () => {
+    // simulamos que no hay token
+    spyOn(authService, 'getToken').and.returnValue(null);
+    const result = guard.canActivate(); // ⚡ sin argumentos
+    expect(result).toBe(false);
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
+  });
+});
+
+
+
+===== ./frontend/src/app/auth/auth.guard.ts =====
+
+// auth.guard.ts
+import { Injectable } from '@angular/core';
+import { CanActivate, Router } from '@angular/router';
+import { AuthService } from './auth.service';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthGuard implements CanActivate {
+  constructor(private authService: AuthService, private router: Router) {}
+
+  canActivate(): boolean {
+    if (this.authService.getToken()) {
+      return true; // ✅ permite acceso si hay token
+    } else {
+      this.router.navigate(['/login']); // ⚡ redirige
+      return false; // 🔹 IMPORTANTE: retornar false si no hay token
+    }
+  }
+}
 
 
 ===== ./frontend/src/app/auth/auth.module.ts =====
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 
-
+import { LoginComponent } from './login.component';
 
 @NgModule({
-  declarations: [],
+  declarations: [
+    LoginComponent
+  ],
   imports: [
-    CommonModule
+    CommonModule,
+    ReactiveFormsModule,
+    HttpClientModule
+  ],
+  exports: [
+    LoginComponent
   ]
 })
-export class AuthModule { }
+export class AuthModule {}
+
+
+===== ./frontend/src/app/auth/auth.service.spec.ts =====
+
+//auth.service.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { AuthService } from './auth.service';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule], // 🔹 necesario para HttpClient
+      providers: [AuthService]
+    });
+
+    service = TestBed.inject(AuthService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify(); // 🔹 verifica que no queden requests pendientes
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  it('should store and get token', () => {
+    const token = '12345';
+    service.storeToken(token);
+    expect(service.getToken()).toBe(token);
+  });
+
+  it('should call login API', () => {
+    const mockResponse = { access: 'abc', refresh: 'def' };
+    service.login('user', 'pass').subscribe(res => {
+      expect(res).toEqual(mockResponse);
+    });
+
+    const req = httpMock.expectOne('http://localhost:8000/api/token/');
+    expect(req.request.method).toBe('POST');
+    req.flush(mockResponse);
+  });
+});
+
+
+===== ./frontend/src/app/auth/auth.service.ts =====
+
+// auth.service.ts
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private api = 'http://localhost:8000/api';
+
+  constructor(private http: HttpClient) {}
+
+  // Login, devuelve access y refresh
+  login(username: string, password: string) {
+    return this.http.post<any>(`${this.api}/token/`, { username, password });
+  }
+
+  // Guardamos el token tras login
+  storeToken(token: string) {
+    localStorage.setItem('access_token', token);
+  }
+
+  // Obtener token para interceptor
+  getToken(): string | null {
+    return localStorage.getItem('access_token');
+  }
+
+  // Logout simple
+  logout() {
+    localStorage.removeItem('access_token');
+  }
+
+  // Saber si el usuario está logueado
+  isLoggedIn(): boolean {
+    return !!this.getToken();
+  }
+}
+
+
+
+===== ./frontend/src/app/auth/login.component.html =====
+
+<!--login.component.html-->
+<h2>Login</h2>
+
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <div>
+    <label>Usuario</label>
+    <input type="text" formControlName="username">
+  </div>
+
+  <div>
+    <label>Password</label>
+    <input type="password" formControlName="password">
+  </div>
+
+  <div *ngIf="error" class="error">
+    {{ error }}
+  </div>
+
+  <button type="submit">Ingresar</button>
+</form>
+
+
+===== ./frontend/src/app/auth/login.component.ts =====
+
+//login.component.ts
+
+import { Component } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { AuthService } from './auth.service';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  templateUrl: './login.component.html',
+})
+export class LoginComponent {
+  form: FormGroup;
+  error: string | null = null;
+
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {
+    this.form = this.fb.group({
+      username: ['', Validators.required],
+      password: ['', Validators.required],
+    });
+  }
+
+  submit(): void {
+    if (this.form.invalid) return;
+    this.error = null;
+
+    const { username, password } = this.form.value;
+
+    this.authService.login(username, password).subscribe({
+      next: (res) => {
+        // Guardamos el token en localStorage
+        this.authService.storeToken(res.access);
+        this.router.navigate(['/persons']);
+      },
+      error: () => {
+        this.error = 'Usuario o contraseña incorrectos';
+      }
+    });
+  }
+}
+
+
+===== ./frontend/src/app/core/auth.interceptor.ts =====
+
+// core/auth.interceptor.ts
+import { inject } from '@angular/core';
+import {
+  HttpRequest,
+  HttpHandlerFn,
+  HttpEvent,
+  HttpInterceptorFn
+} from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { AuthService } from '../auth/auth.service';
+
+export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> => {
+  const auth = inject(AuthService);
+  const token = auth.getToken();
+
+  let authReq = req;
+  if (token) {
+    authReq = req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+  }
+
+  return next(authReq);
+};
 
 
 ===== ./frontend/src/app/persons/persons-routing.module.ts =====
@@ -297,9 +608,13 @@ export class PersonsRoutingModule {}
 
 ===== ./frontend/src/app/persons/pages/person-form/person-form.component.spec.ts =====
 
+// person-form.component.spec.ts
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { PersonFormComponent } from './person-form.component';
+import { PersonService } from '../../services/person.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ActivatedRoute } from '@angular/router';
+import { of } from 'rxjs';
 
 describe('PersonFormComponent', () => {
   let component: PersonFormComponent;
@@ -307,9 +622,21 @@ describe('PersonFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PersonFormComponent]
-    })
-    .compileComponents();
+      imports: [
+        PersonFormComponent,       // standalone
+        HttpClientTestingModule    // para PersonService
+      ],
+      providers: [
+        PersonService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { paramMap: { get: () => '123' } }, // mock del id
+            params: of({ id: '123' }) // opcional si usas params observables
+          }
+        }
+      ]
+    }).compileComponents();
 
     fixture = TestBed.createComponent(PersonFormComponent);
     component = fixture.componentInstance;
@@ -320,6 +647,8 @@ describe('PersonFormComponent', () => {
     expect(component).toBeTruthy();
   });
 });
+
+
 
 
 ===== ./frontend/src/app/persons/pages/person-form/person-form.component.ts =====
@@ -528,9 +857,14 @@ export class PersonFormComponent implements OnInit {
 
 ===== ./frontend/src/app/persons/pages/person-list/person-list.component.spec.ts =====
 
+// src/app/persons/pages/person-list/person-list.component.spec.ts
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { PersonListComponent } from './person-list.component';
+import { PersonService } from '../../services/person.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ActivatedRoute } from '@angular/router';
+import { of } from 'rxjs';
+import { convertToParamMap } from '@angular/router';
 
 describe('PersonListComponent', () => {
   let component: PersonListComponent;
@@ -538,9 +872,20 @@ describe('PersonListComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PersonListComponent]
-    })
-    .compileComponents();
+      imports: [
+        PersonListComponent,      // standalone
+        HttpClientTestingModule   // 🔹 provee HttpClient para PersonService
+      ],
+      providers: [
+        PersonService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            queryParamMap: of(convertToParamMap({ page: '1', ordering: '-created_at' }))
+          }
+        }
+      ]
+    }).compileComponents();
 
     fixture = TestBed.createComponent(PersonListComponent);
     component = fixture.componentInstance;
@@ -640,58 +985,70 @@ export class PersonListComponent implements OnInit {
 
 ===== ./frontend/src/app/persons/services/person.service.spec.ts =====
 
-import { TestBed } from '@angular/core/testing';
+//person.service.ts
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 
-import { PersonService } from './person.service';
+@Injectable({ providedIn: 'root' })
+export class PersonsService {
 
-describe('PersonService', () => {
-  let service: PersonService;
+  private api = 'http://localhost:8000/api/v1/persons';
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(PersonService);
-  });
+  constructor(private http: HttpClient) {}
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-});
+  list(page = 1) {
+    const token = localStorage.getItem('access');
+
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+
+    return this.http.get(
+      `${this.api}/?page=${page}&ordering=-created_at`,
+      { headers }
+    );
+  }
+}
 
 
 ===== ./frontend/src/app/persons/services/person.service.ts =====
 
 //person.service.ts
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { environment } from '../../../../src/environments/environment';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class PersonService {
-  private baseUrl = `${environment.apiBaseUrl}/api/v1/persons/`;
+
+  private apiUrl = `${environment.apiBaseUrl}/api/v1/persons`;
+
 
   constructor(private http: HttpClient) {}
 
-  list(params?: any) {
-    let httpParams = new HttpParams({ fromObject: params });
-    return this.http.get(this.baseUrl, { params: httpParams });
+  list(params: any = {}) {
+    return this.http.get<any>(this.apiUrl, { params });
   }
 
   get(id: string) {
-    return this.http.get(`${this.baseUrl}${id}/`);
+    return this.http.get<any>(`${this.apiUrl}/${id}/`);
   }
 
   create(data: any) {
-    return this.http.post(this.baseUrl, data);
+    return this.http.post<any>(this.apiUrl + '/', data);
   }
 
   update(id: string, data: any) {
-    return this.http.patch(`${this.baseUrl}${id}/`, data);
+    return this.http.put<any>(`${this.apiUrl}/${id}/`, data);
   }
 
   delete(id: string) {
-    return this.http.delete(`${this.baseUrl}${id}/`);
+    return this.http.delete<any>(`${this.apiUrl}/${id}/`);
   }
 }
+
 
 
 ===== ./frontend/src/app/products/products-routing.module.ts =====
@@ -877,6 +1234,7 @@ psycopg2-binary==2.9.11
 python-dotenv==1.2.1
 sqlparse==0.5.5
 tzdata==2025.3
+djangorestframework-simplejwt==5.3.1
 
 
 ===== ./Microservicio/core/asgi.py =====
@@ -1050,9 +1408,16 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('people.urls')),  # conecta la app people
+    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
 
 
@@ -1082,34 +1447,30 @@ application = get_wsgi_application()
 
 ===== ./Microservicio/core/settings/base.py =====
 
+# base.py
 """
 Django settings for core project.
-
-Generated by 'django-admin startproject' using Django 4.2.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/topics/settings/
-
-For the full list of settings and their values, see
-https://docs.djangoproject.com/en/4.2/ref/settings/
+Django 4.2
 """
 
 from pathlib import Path
+from datetime import timedelta
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# --------------------------------------------------
+# BASE
+# --------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-feavvhp18sq^^_5(g2^cuby)vpj#c4n13m(h=vmw4n!w_&(k7i'
 
-# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
 
+ALLOWED_HOSTS = ["*"]
 
-# Application definition
+# --------------------------------------------------
+# APPLICATIONS
+# --------------------------------------------------
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -1118,13 +1479,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
+    # third-party
     'rest_framework',
-    'people',    
     'corsheaders',
+
+    # local
+    'people',
 ]
 
+# --------------------------------------------------
+# MIDDLEWARE (ORDEN CORRECTO, SIN DUPLICADOS)
+# --------------------------------------------------
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',   # 🔴 debe ir primero
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -1132,10 +1501,39 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
 ]
 
+# --------------------------------------------------
+# CORS (ANGULAR)
+# --------------------------------------------------
+
+# Para desarrollo con Angular
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+    'accept',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# --------------------------------------------------
+# URLS / WSGI
+# --------------------------------------------------
+
 ROOT_URLCONF = 'core.urls'
+
+WSGI_APPLICATION = 'core.wsgi.application'
+
+# --------------------------------------------------
+# TEMPLATES
+# --------------------------------------------------
 
 TEMPLATES = [
     {
@@ -1153,11 +1551,9 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# --------------------------------------------------
+# DATABASE (PostgreSQL / Docker)
+# --------------------------------------------------
 
 DATABASES = {
     "default": {
@@ -1170,46 +1566,53 @@ DATABASES = {
     }
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+# --------------------------------------------------
+# PASSWORD VALIDATION
+# --------------------------------------------------
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
+# --------------------------------------------------
+# INTERNATIONALIZATION
+# --------------------------------------------------
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
 
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
+# --------------------------------------------------
+# STATIC
+# --------------------------------------------------
 
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --------------------------------------------------
+# DRF + JWT
+# --------------------------------------------------
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 
 ===== ./Microservicio/core/settings/dev.py =====
@@ -1329,12 +1732,14 @@ from rest_framework import viewsets, filters
 from rest_framework.pagination import PageNumberPagination
 from .models import Person
 from .serializers import PersonSerializer
+from rest_framework.permissions import IsAuthenticated
 
 class PersonPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
 
 class PersonViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Person.objects.all().order_by('-created_at')
     serializer_class = PersonSerializer
     pagination_class = PersonPagination
