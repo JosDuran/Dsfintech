@@ -1,16 +1,24 @@
-import { TestBed } from '@angular/core/testing';
+//person.service.ts
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 
-import { PersonService } from './person.service';
+@Injectable({ providedIn: 'root' })
+export class PersonsService {
 
-describe('PersonService', () => {
-  let service: PersonService;
+  private api = 'http://localhost:8000/api/v1/persons';
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(PersonService);
-  });
+  constructor(private http: HttpClient) {}
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-});
+  list(page = 1) {
+    const token = localStorage.getItem('access');
+
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+
+    return this.http.get(
+      `${this.api}/?page=${page}&ordering=-created_at`,
+      { headers }
+    );
+  }
+}
