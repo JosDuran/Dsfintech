@@ -201,20 +201,17 @@ docker compose exec web python manage.py fillppl
 
 Paso previo si se quiere ejecutar
 
-🚀 Ejecución en desarrollo del frontend
+🚀 Ejecución en desarrollo del frontend/backend
 Requisitos
 
-Node.js 18+
 
-Angular CLI 16+
 
 Backend Django corriendo en http://localhost:8000
 
 Pasos
 git clone <url-del-repositorio>
 cd frontend
-npm install
-ng serve
+docker compose up
 
 
 La aplicación estará disponible en:
@@ -245,7 +242,6 @@ Los errores se muestran claramente debajo de cada campo.
 
 ⚠️ Manejo de errores
 
-Interceptor HTTP para capturar errores 4xx / 5xx
 
 Mensajes amigables en UI
 
