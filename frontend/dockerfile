@@ -1,0 +1,18 @@
+# Dockerfile.dev
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copiar package.json primero para cachear dependencias
+COPY package*.json ./
+
+RUN npm install
+
+# Copiar todo el proyecto
+COPY . .
+
+# Exponer puerto Angular dev server
+EXPOSE 4200
+
+# Comando para desarrollo con hot reload
+CMD ["npm", "start"]

@@ -6,6 +6,9 @@ Django 4.2
 
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url
+from dotenv import load_dotenv
 
 # --------------------------------------------------
 # BASE
@@ -13,11 +16,12 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-feavvhp18sq^^_5(g2^cuby)vpj#c4n13m(h=vmw4n!w_&(k7i'
+# Cargar variables del .env
+load_dotenv(BASE_DIR / ".env")
 
-DEBUG = True
-
-ALLOWED_HOSTS = ["*"]
+SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
+DEBUG = os.getenv("DEBUG", "True") == "True"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 
 # --------------------------------------------------
 # APPLICATIONS
@@ -58,12 +62,10 @@ MIDDLEWARE = [
 # CORS (ANGULAR)
 # --------------------------------------------------
 
-# Para desarrollo con Angular
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-]
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:4200"
+).split(",")
 CORS_ALLOW_CREDENTIALS = True
-
 CORS_ALLOW_HEADERS = [
     'authorization',
     'content-type',
@@ -79,7 +81,6 @@ CORS_ALLOW_HEADERS = [
 # --------------------------------------------------
 
 ROOT_URLCONF = 'core.urls'
-
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # --------------------------------------------------
@@ -103,19 +104,14 @@ TEMPLATES = [
 ]
 
 # --------------------------------------------------
-# DATABASE (PostgreSQL / Docker)
+# DATABASE
 # --------------------------------------------------
 
+# base.py
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "app",
-        "USER": "postgres",
-        "PASSWORD": "postgres",
-        "HOST": "db",
-        "PORT": "5432",
-    }
+    "default": dj_database_url.parse(os.getenv("DATABASE_URL"))
 }
+
 
 # --------------------------------------------------
 # PASSWORD VALIDATION
@@ -134,7 +130,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
-
 USE_I18N = True
 USE_TZ = True
 
@@ -143,7 +138,6 @@ USE_TZ = True
 # --------------------------------------------------
 
 STATIC_URL = 'static/'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --------------------------------------------------

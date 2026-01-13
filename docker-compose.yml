@@ -1,0 +1,76 @@
+services:
+  # -----------------------------
+  # Base de datos PostgreSQL
+  # -----------------------------
+  db:
+    image: postgres:15
+    container_name: dsfintech_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # -----------------------------
+  # Backend Django
+  # -----------------------------
+  web:
+    build: ./Microservicio
+    container_name: dsfintech_web
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./Microservicio:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+
+  # -----------------------------
+  # Frontend Angular
+  # -----------------------------
+  frontend:
+    build: ./frontend
+    container_name: dsfintech_frontend
+    command: npx ng serve --host 0.0.0.0 --port 4200
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "4200:4200"
+    depends_on:
+      - web
+
+  # -----------------------------
+  # Servicio de Tests del backend
+  # -----------------------------
+  tests:
+    build: ./Microservicio
+    container_name: dsfintech_tests
+    command: pytest
+    env_file:
+      - .env
+    volumes:
+      - ./Microservicio:/app
+    depends_on:
+      - web
+      - db
+
+      
+  # -----------------------------
+  # Servicio de Tests del frontend
+  # -----------------------------      
+      
+  frontend-tests:
+    build: ./fronttest
+    container_name: dsfintech_frontend_tests
+    command: npm run test
+
+# -----------------------------
+# Volúmenes persistentes
+# -----------------------------
+volumes:
+  pgdata:
