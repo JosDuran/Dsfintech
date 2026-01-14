@@ -76,12 +76,14 @@ backend-tests:
   stage: test
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - docker run --rm \
+    - |
+      docker run --rm \
         -e POSTGRES_DB=$POSTGRES_DB \
         -e POSTGRES_USER=$POSTGRES_USER \
         -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
         -e DATABASE_URL=$DATABASE_URL \
         $CI_REGISTRY_IMAGE/backend:latest \
         sh -c "python manage.py migrate && pytest"
+
 
 
