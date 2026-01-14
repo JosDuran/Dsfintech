@@ -74,15 +74,20 @@ frontend-tests:
 # -----------------------------------
 backend-tests:
   stage: test
+  services:
+    - name: postgres:15
+      alias: postgres
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - |
       docker run --rm \
+        --network "$CI_JOB_NETWORK" \
         -e POSTGRES_DB=$POSTGRES_DB \
         -e POSTGRES_USER=$POSTGRES_USER \
         -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
         -e DATABASE_URL=$DATABASE_URL \
         $CI_REGISTRY_IMAGE/backend:latest \
         sh -c "python manage.py migrate && pytest"
+
 
 
