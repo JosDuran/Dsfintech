@@ -61,7 +61,7 @@ build-frontend:
 # -----------------------------------
 frontend-tests:
   stage: test
-  image: "$CI_REGISTRY_IMAGE/frontest:latest"
+  image: "$CI_REGISTRY_IMAGE/frontend-test:latest"
   script:
     - npm ci
     - npm run test -- --watch=false --browsers=ChromeHeadless
