@@ -4,21 +4,9 @@ stages:
   - test
 
 # -----------------------------------
-# Imagen base + Docker-in-Docker
-# -----------------------------------
-image: docker:27
-
-services:
-  - name: docker:27-dind
-    command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
-
-# -----------------------------------
 # Variables globales
 # -----------------------------------
 variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
-
   POSTGRES_DB: app
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -27,60 +15,65 @@ variables:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 # -----------------------------------
-# Debug (verificar entorno)
+# Debug (entorno del runner)
 # -----------------------------------
 debug:
   stage: debug
+  image: alpine:3.19
   script:
     - whoami
-    - which docker
-    - docker version
     - pwd
+    - env | sort
 
 # -----------------------------------
-# Build backend
+# Build backend (USA Docker)
 # -----------------------------------
 build-backend:
   stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE/backend:latest ./Microservicio
-    - docker push $CI_REGISTRY_IMAGE/backend:latest
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE/backend:latest" ./Microservicio
+    - docker push "$CI_REGISTRY_IMAGE/backend:latest"
 
 # -----------------------------------
-# Build frontend
+# Build frontend (USA Docker)
 # -----------------------------------
 build-frontend:
   stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE/frontend:latest ./frontend
-    - docker push $CI_REGISTRY_IMAGE/frontend:latest
-    
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE/frontend:latest" ./frontend
+    - docker push "$CI_REGISTRY_IMAGE/frontend:latest"
+
 # -----------------------------------
 # Test frontend Angular
 # -----------------------------------
 frontend-tests:
   stage: test
+  image: "$CI_REGISTRY_IMAGE/frontend:latest"
   script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - docker run --rm $CI_REGISTRY_IMAGE/frontend:latest sh -c "
-        npm ci &&
-        npm run test -- --watch=false --browsers=ChromeHeadless
-      "
+    - npm ci
+    - npm run test -- --watch=false --browsers=ChromeHeadless
 
 # -----------------------------------
-# Test backend Django
+# Test backend Django (SIN Docker-in-Docker)
 # -----------------------------------
 backend-tests:
   stage: test
+  image: "$CI_REGISTRY_IMAGE/backend:latest"
   services:
     - name: postgres:15
       alias: postgres
   script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - docker run --rm --network "$CI_JOB_NETWORK" -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e DATABASE_URL=$DATABASE_URL $CI_REGISTRY_IMAGE/backend:latest sh -c "python manage.py migrate && pytest"
-
-
-
-
+    - python manage.py migrate
+    - pytest
