@@ -52,8 +52,7 @@ backend-tests:
   image: python:3.12
 
   services:
-    - name: postgres:15
-      alias: postgres
+    - postgres:15
 
   variables:
     POSTGRES_DB: app
@@ -63,11 +62,15 @@ backend-tests:
     DJANGO_SETTINGS_MODULE: core.settings.dev
 
   before_script:
-    - python -V
-    - pip install --upgrade pip
     - pip install -r Microservicio/requirements.txt
 
   script:
+    # 🔍 DEBUG (temporal)
+    - pwd
+    - ls -la
+    - find . -name manage.py
+
+    # ▶️ EJECUCIÓN REAL
     - cd Microservicio
     - python manage.py migrate
     - pytest
