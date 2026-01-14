@@ -76,12 +76,12 @@ build-frontend-test:
 frontend-tests:
   stage: test
   image: "$CI_REGISTRY_IMAGE/frontend-test:latest"
-  needs: ["build-frontend-test"]  # <-- Asegura que se construya primero
+  needs: ["build-frontend-test"]
   before_script:
-    - cd /app  # <-- SOLO ESTO NECESITAS AGREGAR  
+    - cd /app
   script:
-    - npm run test -- --watch=false --browsers=ChromeHeadless
-
+    # Usar ChromeHeadlessDocker en lugar de ChromeHeadless
+    - npx ng test --watch=false --browsers=ChromeHeadlessDocker
 # -----------------------------------
 # Test backend Django (SIN Docker-in-Docker)
 # -----------------------------------
