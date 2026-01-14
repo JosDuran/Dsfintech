@@ -47,19 +47,20 @@ services:
   # -----------------------------
   # Servicio de Tests del backend
   # -----------------------------
-backend_tests:
+backend-tests:
   stage: test
   image: python:3.12
 
   services:
     - name: postgres:15
-      alias: db
+      alias: postgres
 
   variables:
-    POSTGRES_DB: test_db
-    POSTGRES_USER: test_user
-    POSTGRES_PASSWORD: test_pass
-    DATABASE_URL: postgres://test_user:test_pass@db:5432/test_db
+    POSTGRES_DB: app
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DATABASE_URL: postgres://postgres:postgres@postgres:5432/app
+    DJANGO_SETTINGS_MODULE: core.settings.dev
 
   before_script:
     - python -V
@@ -71,8 +72,6 @@ backend_tests:
     - python manage.py migrate
     - pytest
 
-  only:
-    - main
       
   # -----------------------------
   # Servicio de Tests del frontend
