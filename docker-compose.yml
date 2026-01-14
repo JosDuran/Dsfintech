@@ -47,17 +47,33 @@ services:
   # -----------------------------
   # Servicio de Tests del backend
   # -----------------------------
-  tests:
-    build: ./Microservicio
-    container_name: dsfintech_tests
-    command: pytest
-    env_file:
-      - .env
-    volumes:
-      - ./Microservicio:/app
-    depends_on:
-      - web
-      - db
+backend_tests:
+  stage: test
+  image: python:3.12
+
+  services:
+    - name: postgres:15
+      alias: db
+
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pass
+    DATABASE_URL: postgres://test_user:test_pass@db:5432/test_db
+
+  before_script:
+    - python -V
+    - pip install --upgrade pip
+    - pip install -r Microservicio/requirements.txt
+
+  script:
+    - cd Microservicio
+    - python manage.py migrate
+    - pytest
+
+  only:
+    - main
+
 
       
   # -----------------------------
