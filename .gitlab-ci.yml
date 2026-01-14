@@ -56,6 +56,18 @@ build-frontend:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker build -t $CI_REGISTRY_IMAGE/frontend:latest ./frontend
     - docker push $CI_REGISTRY_IMAGE/frontend:latest
+    
+# -----------------------------------
+# Test frontend Angular
+# -----------------------------------
+frontend-tests:
+  stage: test
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - docker run --rm $CI_REGISTRY_IMAGE/frontend:latest sh -c "
+        npm ci &&
+        npm run test -- --watch=false --browsers=ChromeHeadless
+      "
 
 # -----------------------------------
 # Test backend Django
@@ -63,6 +75,7 @@ build-frontend:
 backend-tests:
   stage: test
   script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker run --rm \
         -e POSTGRES_DB=$POSTGRES_DB \
         -e POSTGRES_USER=$POSTGRES_USER \
@@ -71,13 +84,4 @@ backend-tests:
         $CI_REGISTRY_IMAGE/backend:latest \
         sh -c "python manage.py migrate && pytest"
 
-# -----------------------------------
-# Test frontend Angular
-# -----------------------------------
-frontend-tests:
-  stage: test
-  script:
-    - docker run --rm $CI_REGISTRY_IMAGE/frontend:latest sh -c "
-        npm ci &&
-        npm run test -- --watch=false --browsers=ChromeHeadless
-      "
+
