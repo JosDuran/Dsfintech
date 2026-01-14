@@ -47,33 +47,17 @@ services:
   # -----------------------------
   # Servicio de Tests del backend
   # -----------------------------
-backend-tests:
-  stage: test
-  image: python:3.12
-
-  services:
-    - postgres:15
-
-  variables:
-    POSTGRES_DB: app
-    POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: postgres
-    DATABASE_URL: postgres://postgres:postgres@postgres:5432/app
-    DJANGO_SETTINGS_MODULE: core.settings.dev
-
-  before_script:
-    - pip install -r Microservicio/requirements.txt
-
-  script:
-    # 🔍 DEBUG (temporal)
-    - pwd
-    - ls -la
-    - find . -name manage.py
-
-    # ▶️ EJECUCIÓN REAL
-    - cd Microservicio
-    - python manage.py migrate
-    - pytest
+  tests:
+    build: ./Microservicio
+    container_name: dsfintech_tests
+    command: pytest
+    env_file:
+      - .env
+    volumes:
+      - ./Microservicio:/app
+    depends_on:
+      - web
+      - db
 
       
   # -----------------------------
