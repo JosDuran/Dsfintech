@@ -73,8 +73,6 @@ backend_tests:
 
   only:
     - main
-
-
       
   # -----------------------------
   # Servicio de Tests del frontend
