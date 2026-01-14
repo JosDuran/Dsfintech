@@ -1,3 +1,4 @@
+# .gitlab-ci.yml
 stages:
   - debug
   - build
@@ -74,6 +75,8 @@ backend-tests:
   services:
     - name: postgres:15
       alias: postgres
+  before_script:
+    - cd Microservicio  # <-- AQUÍ EL CAMBIO      
   script:
     - python manage.py migrate
     - pytest
