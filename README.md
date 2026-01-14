@@ -16,7 +16,7 @@ Este proyecto corresponde al desafío frontend y está preparado para ejecutarse
 - ✅ Formularios reactivos con validaciones
 - ✅ Manejo de errores HTTP
 - ✅ Indicadores de carga
-- ✅ Mensajes de estado vacío
+- ✅ Mensajes de estado vacío jeje
 
 Campos mostrados:
 - `first_name`
