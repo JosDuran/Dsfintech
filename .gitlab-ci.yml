@@ -77,6 +77,8 @@ frontend-tests:
   stage: test
   image: "$CI_REGISTRY_IMAGE/frontend-test:latest"
   needs: ["build-frontend-test"]  # <-- Asegura que se construya primero
+  before_script:
+    - cd /app  # <-- SOLO ESTO NECESITAS AGREGAR  
   script:
     - npm run test -- --watch=false --browsers=ChromeHeadless
 
