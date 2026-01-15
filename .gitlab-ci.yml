@@ -3,6 +3,7 @@ stages:
   - debug
   - build
   - test
+  - deploy
 
 # -----------------------------------
 # Variables globales
@@ -96,3 +97,18 @@ backend-tests:
   script:
     - python manage.py migrate
     - pytest
+
+# -----------------------------------
+# DEPLOY FINAL CON DOCKER COMPOSE
+# -----------------------------------
+
+deploy-prod:
+  stage: deploy
+  tags:
+    - deploy   # coincide con el tag que pusiste al registrar el runner
+  script:
+    - cd /home/rufus/pyapps3/Dsfintech
+    - docker compose pull        # trae imágenes más recientes desde el registry
+    - docker compose up -d       # levanta contenedores
+  only:
+    - main
